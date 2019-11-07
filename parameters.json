@@ -1,9 +1,5 @@
 [
     {
-        "ParameterKey": "APIName",
-        "ParameterValue": ""
-    },
-    {
         "ParameterKey": "DNSRecordSetName",
         "ParameterValue": ""
     },

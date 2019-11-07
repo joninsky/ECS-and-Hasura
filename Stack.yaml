@@ -10,10 +10,6 @@ Parameters:
   SSLCertARN:
     Description: 'The ARN of the SSL Cert that you API will be served behind.'
     Type: String
-  DBSnapshotName: 
-    Description: The name of a DB snapshot (optional)
-    Default: ""
-    Type: String
   DBMasterUsername:
     Description: 'The username that will be used for the root admin user in PostgreSQL'
     Type: String
@@ -29,22 +25,12 @@ Parameters:
   HasuraAccessKey:
     Description: 'The console should have an access key for basic security.'
     Type: String
-  ENV:
-    Description: 'The environment that this stack represents'
-    Type: String
-    Default: 'development'
-    ConstraintDescription: "Must be either 'development', 'staging', or 'production'"
-    AllowedValues:
-      - 'development'
-      - 'staging'
-      - 'production'
   
   #Parameters with default values
-
-  ServiceName:
+  APIName:
     Description: The name of the ECS Service.
     Type: String
-    Default: 'HasuraService'
+    Default: 'HasuraGraphQLAPI'
   ContainerPort:
     Description: 'Hasura exposes stuff over 8080. We need to tell this to the container definition.'
     Type: Number
@@ -70,10 +56,6 @@ Parameters:
     Type: Number
     Default: 50
 
-Conditions:
-  IsProduction: !Equals [!Ref 'ENV', 'production']
-  UseDBSnapshot: !Not [!Equals [!Ref DBSnapshotName, ""]]
-
 Resources:
   #Let's take care of the VPC
   #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-vpc.html
@@ -86,14 +68,14 @@ Resources:
       InstanceTenancy: default
       Tags:
       - Key: Name
-        Value: !Sub 'vpc-${ENV}'
+        Value: !Sub '${APIName}-VPC'
   #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-internetgateway.html
   InternetGateway:
     Type: 'AWS::EC2::InternetGateway'
     Properties:
       Tags:
       - Key: Name
-        Value: !Sub 'Internet Gateway ${ENV}'
+        Value: !Sub '${APIName}-InternetGateway'
   #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-vpc-gateway-attachment.html
   VPCGatewayAttachment:
     Type: 'AWS::EC2::VPCGatewayAttachment'
@@ -112,7 +94,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
       - Key: Name
-        Value: !Sub 'Subnet A public - ${ENV}'
+        Value: !Sub '${APIName}-Subnet-A-Public'
       - Key: Reach
         Value: public
   SubnetAPrivate:
@@ -123,7 +105,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
       - Key: Name
-        Value: !Sub 'Subnet A private - ${ENV}'
+        Value: !Sub '${APIName}-Subnet-A-Private'
       - Key: Reach
         Value: private
   SubnetBPublic:
@@ -135,7 +117,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
       - Key: Name
-        Value: !Sub 'Subnet B public - ${ENV}'
+        Value: !Sub '${APIName}-Subnet-B-Public'
       - Key: Reach
         Value: public
   SubnetBPrivate:
@@ -146,7 +128,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
       - Key: Name
-        Value: !Sub 'Subnet B private - ${ENV}'
+        Value: !Sub '${APIName}-Subnet-B-Private'
       - Key: Reach
         Value: private
   SubnetCPublic:
@@ -158,7 +140,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
       - Key: Name
-        Value: !Sub 'Subnet C public - ${ENV}'
+        Value: !Sub '${APIName}-Subnet-C-Public'
       - Key: Reach
         Value: public
   SubnetCPrivate:
@@ -169,7 +151,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
       - Key: Name
-        Value: !Sub 'Subnet C private - ${ENV}'
+        Value: !Sub '${APIName}-Subnet-C-Private'
       - Key: Reach
         Value: private
   #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-route-table.html
@@ -179,42 +161,42 @@ Resources:
       VpcId: !Ref VPC
       Tags:
       - Key: Name
-        Value: !Sub 'Route Table public A - ${ENV}'
+        Value: !Sub '${APIName}-Route-Table-Public-A'
   RouteTableAPrivate:
     Type: 'AWS::EC2::RouteTable'
     Properties:
       VpcId: !Ref VPC
       Tags:
       - Key: Name
-        Value: !Sub 'Route Table private A - ${ENV}'
+        Value: !Sub '${APIName}-Route-Table-Private-A'
   RouteTableBPublic:
     Type: 'AWS::EC2::RouteTable'
     Properties:
       VpcId: !Ref VPC
       Tags:
       - Key: Name
-        Value: !Sub 'Route Table public B - ${ENV}'
+        Value: !Sub '${APIName}-Route-Table-Public-B'
   RouteTableBPrivate:
     Type: 'AWS::EC2::RouteTable'
     Properties:
       VpcId: !Ref VPC
       Tags:
       - Key: Name
-        Value: !Sub 'Route Table private B - ${ENV}'
+        Value: !Sub '${APIName}-Route-Table-Private-B'
   RouteTableCPublic:
     Type: 'AWS::EC2::RouteTable'
     Properties:
       VpcId: !Ref VPC
       Tags:
       - Key: Name
-        Value: !Sub 'Route Table public C - ${ENV}'
+        Value: !Sub '${APIName}-Route-Table-Public-C'
   RouteTableCPrivate:
     Type: 'AWS::EC2::RouteTable'
     Properties:
       VpcId: !Ref VPC
       Tags:
       - Key: Name
-        Value: !Sub 'Route Table private C - ${ENV}'
+        Value: !Sub '${APIName}-Route-Table-Private-C'
   #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-subnet-route-table-assoc.html
   RouteTableAssociationAPublic:
     Type: 'AWS::EC2::SubnetRouteTableAssociation'
@@ -275,14 +257,14 @@ Resources:
       VpcId: !Ref VPC
       Tags:
       - Key: Name
-        Value: !Sub 'Public network ACL - ${ENV}'
+        Value: !Sub '${APIName}-Public-Network-ACL'
   NetworkAclPrivate:
     Type: 'AWS::EC2::NetworkAcl'
     Properties:
       VpcId: !Ref VPC
       Tags:
       - Key: Name
-        Value: !Sub 'Private network ACL - ${ENV}'
+        Value: !Sub '${APIName}-Private-Network-ACL'
   #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-subnet-network-acl-assoc.html
   SubnetNetworkAclAssociationAPublic:
     Type: 'AWS::EC2::SubnetNetworkAclAssociation'
@@ -356,8 +338,9 @@ Resources:
   DBSSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      GroupName: !If ['IsProduction', 'api_rds', !Sub 'api_rds_${ENV}']
-      GroupDescription: !Sub 'Security group to control access to RDS PostgreSQL instance inside the ${ENV} API stack VPC'
+      GroupName: !Sub '${APIName}-RDS-SecurityGroup'
+      GroupDescription: !Sub 'Security group to control access to RDS PostgreSQL instance inside the ${APIName} API stack VPC'
+      VpcId: !Ref 'VPC'
       SecurityGroupIngress:
         - 
           IpProtocol: 'tcp'
@@ -370,32 +353,32 @@ Resources:
           CidrIp: '73.109.63.52/32'
           FromPort: 5432
           ToPort: 5432
-      VpcId: !Ref 'VPC'
       Tags:
-        - Key: 'environment'
-          Value: !Sub '${ENV}'
         - Key: 'Name'
-          Value: !Sub 'API Stack RDS Security group - ${ENV}'
+          Value: !Sub '${APIName}-RDS-SecurityGroup'
   #I'm listing security groups in the order that traffic would flow from the outside internet. It would first come through the SSL port 443 on the load balancer. 
   #This first security group should be assigned to any load balancer that is sitting in front of an EC2 instance in the VPC
   #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-security-group.html
   LoadBalancerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !If ['IsProduction', 'api_elb', !Sub 'api_elb_${ENV}']
-      GroupDescription: !Sub 'Security group to control external access to the load balancer. ${ENV}'
+      GroupName: !Sub '${APIName}-ELB-SecurityGroup'
+      GroupDescription: !Sub 'Security group to control external access to the load balancer. ${APIName}'
       VpcId: !Ref 'VPC'
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
           CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: 'Name'
+          Value: !Sub '${APIName}-ELB-SecurityGroup'
   #After traffic comes in through a load balancer it goes to an EC2 instance. The EC2 instance should allow traffic from the load balancer over both port 80 and 8080 which are two common ports.
   EC2SecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      GroupName: !If ['IsProduction', 'api_ec2', !Sub 'api_ec2_${ENV}']
-      GroupDescription: !Sub 'Security group to control access to an EC2 instance inside the ${ENV} stack VPC'
+      GroupName: !Sub '${APIName}-EC2-SecurityGroup'
+      GroupDescription: !Sub 'Security group to control access to an EC2 instance inside the ${APIName} stack VPC'
       VpcId: !Ref 'VPC'
       SecurityGroupIngress:
         -
@@ -408,20 +391,19 @@ Resources:
           SourceSecurityGroupId: !Ref 'LoadBalancerSecurityGroup'
           FromPort: 80
           ToPort: 80
-
+      Tags:
+        - Key: 'Name'
+          Value: !Sub '${APIName}-EC2-SecurityGroup'
   #Now It's time to make the PostgreSQL DB.
   RDSSubnetGroup:
     Type: 'AWS::RDS::DBSubnetGroup'
     Properties:
       DBSubnetGroupDescription: 'Subnet RDS group for this VPC'
-      DBSubnetGroupName: !Sub 'postgresql_rds_subnetgroup_${ENV}'
+      DBSubnetGroupName: !Sub '${APIName}-RDS-SubnetGroup'
       SubnetIds:
         - !Ref 'SubnetAPublic'
         - !Ref 'SubnetBPublic'
         - !Ref 'SubnetCPublic'
-      Tags:
-        - Key: 'environment'
-          Value: !Sub '${ENV}'
   #https://dev.classmethod.jp/cloud/aws/cloudformation-aurora-postgresql/
   AuroraClusterParameterGroup:
     Type: 'AWS::RDS::DBClusterParameterGroup'
@@ -430,9 +412,6 @@ Resources:
       Family: 'aurora-postgresql10'
       Parameters:
         client_encoding: UTF8
-      Tags:
-        - Key: 'environment'
-          Value: !Sub '${ENV}'
   #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-rds-dbcluster.html
   AuroraCluster:
     Type: 'AWS::RDS::DBCluster'
@@ -440,13 +419,12 @@ Resources:
       Engine: 'aurora-postgresql'
       EngineVersion: '10.7'
       EngineMode: 'serverless'
-      SnapshotIdentifier: !If [UseDBSnapshot, !Ref DBSnapshotName, !Ref "AWS::NoValue"]
-      DBClusterIdentifier: !If ['IsProduction', 'database-cluster', !Sub 'database-cluster-${ENV}']
+      DBClusterIdentifier: !Sub '${APIName}-Database-Cluster'
       DatabaseName: !Ref 'DBName'
       DBClusterParameterGroupName: !Ref 'AuroraClusterParameterGroup'
       DBSubnetGroupName: !Ref 'RDSSubnetGroup'
-      MasterUsername: !If ['UseDBSnapshot', !Ref 'AWS::NoValue', !Ref 'DBMasterUsername']
-      MasterUserPassword: !If ['UseDBSnapshot', !Ref 'AWS::NoValue', !Ref 'DBMasterUserPassword']
+      MasterUsername: !Ref 'DBMasterUsername'
+      MasterUserPassword: !Ref 'DBMasterUserPassword'
       Port: 5432
       #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-rds-dbcluster-scalingconfiguration.html
       ScalingConfiguration:
@@ -455,14 +433,11 @@ Resources:
         MinCapacity: 2
       VpcSecurityGroupIds: 
         - !Ref 'DBSSecurityGroup'
-      Tags:
-        - Key: 'environment'
-          Value: !Sub '${ENV}'
 
   Cluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: !Join ['', [!Ref ServiceName, Cluster]]
+      ClusterName: !Join ['-', [!Ref APIName, Cluster]]
   #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ecs-taskdefinition.html
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -470,7 +445,7 @@ Resources:
     DependsOn: LogGroup
     Properties:
       # Name of the task definition. Subsequent versions of the task definition are grouped together under this name.
-      Family: !Join ['', [!Ref ServiceName, TaskDefinition]]
+      Family: !Join ['-', [!Ref APIName, TaskDefinition]]
       # awsvpc is required for Fargate
       NetworkMode: awsvpc
       RequiresCompatibilities:
@@ -494,7 +469,7 @@ Resources:
       # "The Amazon Resource Name (ARN) of an AWS Identity and Access Management (IAM) role that grants containers in the task permission to call AWS APIs on your behalf."
       TaskRoleArn: !Ref TaskRole
       ContainerDefinitions:
-        - Name: !Ref ServiceName
+        - Name: !Ref APIName
           Image: !Ref ECRImage
           PortMappings:
             - ContainerPort: !Ref ContainerPort
@@ -523,7 +498,7 @@ Resources:
   ExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Join ['', [!Ref ServiceName, ExecutionRole]]
+      RoleName: !Join ['-', [!Ref APIName, ExecutionRole]]
       AssumeRolePolicyDocument:
         Statement:
           - Effect: Allow
@@ -536,7 +511,7 @@ Resources:
   TaskRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Join ['', [!Ref ServiceName, TaskRole]]
+      RoleName: !Join ['-', [!Ref APIName, TaskRole]]
       AssumeRolePolicyDocument:
         Statement:
           - Effect: Allow
@@ -547,7 +522,7 @@ Resources:
   AutoScalingRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Join ['', [!Ref ServiceName, AutoScalingRole]]
+      RoleName: !Join ['-', [!Ref APIName, AutoScalingRole]]
       AssumeRolePolicyDocument:
         Statement:
           - Effect: Allow
@@ -562,7 +537,7 @@ Resources:
     DependsOn:
       - ListenerHTTPS
     Properties: 
-      ServiceName: !Ref ServiceName
+      APIName: !Ref APIName
       Cluster: !Ref Cluster
       TaskDefinition: !Ref TaskDefinition
       DeploymentConfiguration:
@@ -583,7 +558,7 @@ Resources:
           SecurityGroups:
             - !Ref 'EC2SecurityGroup'
       LoadBalancers:
-        - ContainerName: !Ref ServiceName
+        - ContainerName: !Ref APIName
           ContainerPort: !Ref ContainerPort
           TargetGroupArn: !Ref TargetGroup
   TargetGroup:
@@ -595,7 +570,7 @@ Resources:
       HealthCheckTimeoutSeconds: 5
       UnhealthyThresholdCount: 2
       HealthyThresholdCount: 2
-      Name: !Join ['', [!Ref ServiceName, TargetGroup]]
+      Name: !Join ['-', [!Ref APIName, TargetGroup]]
       Port: !Ref ContainerPort
       Protocol: HTTP
       TargetGroupAttributes:
@@ -621,7 +596,7 @@ Resources:
         # this is the default, but is specified here in case it needs to be changed
         - Key: idle_timeout.timeout_seconds
           Value: 360
-      Name: !Join ['', [!Ref ServiceName, LoadBalancer]]
+      Name: !Join ['-', [!Ref APIName, LoadBalancer]]
       # "internal" is also an option
       Scheme: internet-facing
       SecurityGroups: 
@@ -643,7 +618,7 @@ Resources:
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Join ['', [/ecs/, !Ref ServiceName, TaskDefinition]]
+      LogGroupName: !Join ['', [/ecs/, !Ref APIName, TaskDefinition]]
   AutoScalingTarget:
     Type: AWS::ApplicationAutoScaling::ScalableTarget
     Properties:
@@ -651,13 +626,13 @@ Resources:
       MaxCapacity: !Ref MaxContainers
       ResourceId: !Join ['/', [service, !Ref Cluster, !GetAtt Service.Name]]
       ScalableDimension: ecs:service:DesiredCount
-      ServiceNamespace: ecs
+      APINamespace: ecs
       # "The Amazon Resource Name (ARN) of an AWS Identity and Access Management (IAM) role that allows Application Auto Scaling to modify your scalable target."
       RoleARN: !GetAtt AutoScalingRole.Arn
   AutoScalingPolicy:
     Type: AWS::ApplicationAutoScaling::ScalingPolicy
     Properties:
-      PolicyName: !Join ['', [!Ref ServiceName, AutoScalingPolicy]]
+      PolicyName: !Join ['-', [!Ref APIName, AutoScalingPolicy]]
       PolicyType: TargetTrackingScaling
       ScalingTargetId: !Ref AutoScalingTarget
       TargetTrackingScalingPolicyConfiguration:
