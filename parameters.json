@@ -1,0 +1,38 @@
+[
+    {
+        "ParameterKey": "APIName",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "DNSRecordSetName",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "HostedZoneID",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "SSLCertARN",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "ECRImage",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "DBMasterUsername",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "DBMasterUserPassword",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "DBName",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "HasuraAccessKey",
+        "ParameterValue": ""
+    }
+]
