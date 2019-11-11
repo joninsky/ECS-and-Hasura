@@ -398,8 +398,8 @@ Resources:
   RDSSubnetGroup:
     Type: 'AWS::RDS::DBSubnetGroup'
     Properties:
-      DBSubnetGroupDescription: 'Subnet RDS group for this VPC'
-      DBSubnetGroupName: !Sub '${APIName}-RDS-SubnetGroup'
+      DBSubnetGroupDescription: 'Subnet RDS Subnet group.'
+      DBSubnetGroupName: 'rds-subnetgroup'
       SubnetIds:
         - !Ref 'SubnetAPublic'
         - !Ref 'SubnetBPublic'
@@ -414,6 +414,7 @@ Resources:
         client_encoding: UTF8
   #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-rds-dbcluster.html
   AuroraCluster:
+    DependsOn: RDSSubnetGroup
     Type: 'AWS::RDS::DBCluster'
     Properties:
       Engine: 'aurora-postgresql'
@@ -537,7 +538,7 @@ Resources:
     DependsOn:
       - ListenerHTTPS
     Properties: 
-      APIName: !Ref APIName
+      ServiceName: !Ref APIName
       Cluster: !Ref Cluster
       TaskDefinition: !Ref TaskDefinition
       DeploymentConfiguration:
@@ -626,7 +627,7 @@ Resources:
       MaxCapacity: !Ref MaxContainers
       ResourceId: !Join ['/', [service, !Ref Cluster, !GetAtt Service.Name]]
       ScalableDimension: ecs:service:DesiredCount
-      APINamespace: ecs
+      ServiceNamespace: ecs
       # "The Amazon Resource Name (ARN) of an AWS Identity and Access Management (IAM) role that allows Application Auto Scaling to modify your scalable target."
       RoleARN: !GetAtt AutoScalingRole.Arn
   AutoScalingPolicy:
